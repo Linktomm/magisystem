@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NERV MAGI SYSTEM</title>
+    <style>
+        :root {
+            --nerv-orange: #FF6600;
+            --nerv-blue: #1AD1D7;
+            --nerv-red: #D11A2A;
+            --bg-color: #050505;
+            --panel-bg: #101010;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            color: var(--nerv-orange);
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        #top-bar {
+            border: 1px solid var(--nerv-orange);
+            padding: 10px;
+            text-align: center;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+        #input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input {
+            flex: 1;
+            background: #151515;
+            border: 1px solid var(--nerv-orange);
+            color: white;
+            padding: 12px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        button {
+            background: var(--nerv-orange);
+            color: black;
+            border: none;
+            padding: 0 30px;
+            font-family: inherit;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #magi-container {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+        }
+        .magi-panel {
+            flex: 1;
+            background: var(--panel-bg);
+            border: 1px solid var(--nerv-orange);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+        }
+        .status-box {
+            background: #201000;
+            color: var(--nerv-orange);
+            text-align: center;
+            padding: 15px;
+            font-size: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        .status-resolving { background: #1D3B45; color: var(--nerv-blue); animation: blink 1s infinite; }
+        .status-approved { background: var(--nerv-blue) !important; color: black !important; }
+        .status-rejected { background: var(--nerv-red) !important; color: white !important; }
+        .console {
+            flex: 1;
+            background: #050505;
+            border: 1px solid #222;
+            padding: 10px;
+            font-size: 12px;
+            color: var(--nerv-orange);
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        #consensus-banner {
+            border: 2px solid var(--nerv-orange);
+            background: #150A00;
+            padding: 20px;
+            text-align: center;
+            font-size: 22px;
+            margin-top: 20px;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+
+    <div id="top-bar">CODE: 473 // SYS_STATUS: SYSTEM ONLINE // MODE: SECURE_NATIVE_MAGI</div>
+
+    <div id="input-container">
+        <input type="text" id="query-input" placeholder="INSERISCI UN DILEMMA DA RISOLVERE...">
+        <button id="resolve-btn" onclick="triggerMagi()">RESOLVE</button>
+    </div>
+
+    <div id="magi-container">
+        <div class="magi-panel" id="melchior">
+            <div class="status-box" id="m-status">STANDBY</div>
+            <div>MELCHIOR-1</div>
+            <div style="color:#777; font-size:10px; margin-bottom:10px;">LOGICA SCIENTIFICA</div>
+            <div class="console" id="m-console">Circuiti pronti...</div>
+        </div>
+        <div class="magi-panel" id="balthasar">
+            <div class="status-box" id="b-status">STANDBY</div>
+            <div>BALTHASAR-2</div>
+            <div style="color:#777; font-size:10px; margin-bottom:10px;">ETICA MATERNA</div>
+            <div class="console" id="b-console">Circuiti pronti...</div>
+        </div>
+        <div class="magi-panel" id="casper">
+            <div class="status-box" id="c-status">STANDBY</div>
+            <div>CASPER-3</div>
+            <div style="color:#777; font-size:10px; margin-bottom:10px;">PRAGMATISMO</div>
+            <div class="console" id="c-console">Circuiti pronti...</div>
+        </div>
+    </div>
+
+    <div id="consensus-banner">MAGI SYSTEM STANDBY</div>
+
+    <script>
+        const API_KEY = "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"; 
+
+        const PROMPTS = {
+            melchior: "Sei MELCHIOR-1. Analizza la richiesta usando solo logica fredda e scienza. Sii brevissimo (max 2 frasi). Concludi dicendo esattamente: DECISION -> APPROVE o DECISION -> REJECT.",
+            balthasar: "Sei BALTHASAR-2. Analizza la richiesta usando solo empatia umana ed etica morale. Sii brevissimo (max 2 frasi). Concludi dicendo esattamente: DECISION -> APPROVE o DECISION -> REJECT.",
+            casper: "Sei CASPER-3. Analizza la richiesta usando pragmatismo cinico e interesse personale. Sii brevissimo (max 2 frasi). Concludi dicendo esattamente: DECISION -> APPROVE o DECISION -> REJECT."
+        };
+
+        function speak(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'it-IT';
+            window.speechSynthesis.speak(utterance);
+        }
+
+        async function queryAgent(systemPrompt, userQuery, consoleId) {
+            const consoleEl = document.getElementById(consoleId);
+            consoleEl.innerHTML = "CONNESSIONE ALLA BIO-MATRICE...\n";
+            
+            try {
+                const response = await fetch("https://huggingface.co", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${API_KEY}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        inputs: `<|system|>\n${systemPrompt}\n<|user|>\n${userQuery}\n<|assistant|>\n`
+                    })
+                });
+                
+                if (!response.ok) {
+                    consoleEl.innerHTML = `ERRORE SERVER: ${response.status}`;
+                    return "REJECT";
+                }
+                
+                const data = await response.json();
+                let result = data[0]?.generated_text || data.generated_text || "";
+                if (result.includes("<|assistant|>\n")) {
+                    result = result.split("<|assistant|>\n").pop();
+                }
+                
+                consoleEl.innerHTML = result;
+                return result;
+            } catch (e) {
+                consoleEl.innerHTML = "ERRORE RETE.";
+                return "REJECT";
+            }
+        }
+
+        async function triggerMagi() {
+            const query = document.getElementById("query-input").value;
+            if(!query) return;
+
+            document.getElementById("resolve-btn").disabled = true;
+            speak("Analisi avviata.");
+
+            const nodes = ['m', 'b', 'c'];
+            nodes.forEach(n => {
+                document.getElementById(`${n}-status`).className = "status-box status-resolving";
+                document.getElementById(`${n}-status`).innerText = "RESOLVING";
+            });
+
+            const [mRes, bRes, cRes] = await Promise.all([
+                queryAgent(PROMPTS.melchior, query, "m-console"),
+                queryAgent(PROMPTS.balthasar, query, "b-console"),
+                queryAgent(PROMPTS.casper, query, "c-console")
+            ]);
+
+            const mApp = mRes.toUpperCase().includes("APPROVE") || mRes.toUpperCase().includes("APPROVA");
+            const bApp = bRes.toUpperCase().includes("APPROVE") || bRes.toUpperCase().includes("APPROVA");
+            const cApp = cRes.toUpperCase().includes("APPROVE") || cRes.toUpperCase().includes("APPROVA");
+
+            updatePanel('m-status', mApp);
+            updatePanel('b-status', bApp);
+            updatePanel('c-status', cApp);
+
+            const approvals = [mApp, bApp, cApp].filter(Boolean).length;
+            const banner = document.getElementById("consensus-banner");
+
+            if(approvals >= 2) {
+                banner.innerText = `APPROVATO: MAGI UNANIME (${approvals}-${3-approvals})`;
+                banner.style.background = "#0A2912";
+                banner.style.color = "#26FF57";
+                banner.style.borderColor = "#26FF57";
+                speak("Consenso raggiunto. Richiesta approvata.");
+            } else {
+                banner.innerText = `RIFIUTATO: RISOLUZIONE NEGATA (${3-approvals}-${approvals})`;
+                banner.style.background = "#400A0A";
+                banner.style.color = "#FF4A4A";
+                banner.style.borderColor = "#FF4A4A";
+                speak("Risoluzione negata dalla maggioranza.");
+            }
+            document.getElementById("resolve-btn").disabled = false;
+        }
+
+        function updatePanel(id, approved) {
+            const el = document.getElementById(id);
+            if(approved) {
+                el.className = "status-box status-approved";
+                el.innerText = "APPROVED";
+            } else {
+                el.className = "status-box status-rejected";
+                el.innerText = "REJECTED";
+            }
+        }
+    </script>
+</body>
+</html>
